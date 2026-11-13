@@ -1,0 +1,23 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+*.tfplan
+tfplan*
+crash.log
+override.tf
+override.tf.json
+*.auto.tfvars
+terraform.tfvars
+
+# Secretos y credenciales
+.env
+*.pem
+*.key
+*.ppk
+credentials
+.aws/
+
+# Registros crudos locales (versionar solo los revisados)
+observacion/*.raw.*
