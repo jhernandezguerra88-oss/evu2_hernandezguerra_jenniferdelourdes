@@ -7,9 +7,9 @@ variable "vpc_cidr" {
 }
 
 variable "subnets" {
-  description = "Mapa de subredes publicas: cidr e indice de zona"
+  description = "Mapa de subredes publicas: cidr y zona de disponibilidad"
   type = map(object({
-    cidr     = string
-    az_index = number
+    cidr = string
+    az   = string
   }))
 }

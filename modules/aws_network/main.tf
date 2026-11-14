@@ -1,20 +1,23 @@
-data "aws_availability_zones" "available" {
-  state = "available"
-}
-
 resource "aws_vpc" "this" {
+  #checkov:skip=CKV2_AWS_11:Flow logs fuera del alcance de la Fase U2 (requieren destino y rol dedicados); mejora documentada
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
   enable_dns_support   = true
   tags                 = { Name = "${var.prefix}-aws-vpc" }
 }
 
+resource "aws_default_security_group" "this" {
+  vpc_id = aws_vpc.this.id
+  tags   = { Name = "${var.prefix}-aws-default-sg" }
+}
+
 resource "aws_subnet" "public" {
+  #checkov:skip=CKV_AWS_130:Subredes publicas por diseno (Anexo 1): el bootstrap requiere IP publica e Internet Gateway
   for_each = var.subnets
 
   vpc_id                  = aws_vpc.this.id
   cidr_block              = each.value.cidr
-  availability_zone       = data.aws_availability_zones.available.names[each.value.az_index]
+  availability_zone       = each.value.az
   map_public_ip_on_launch = true
   tags                    = { Name = "${var.prefix}-aws-subnet-${each.key}" }
 }
@@ -42,6 +45,7 @@ resource "aws_route_table_association" "public" {
 }
 
 resource "aws_security_group" "alb" {
+  #checkov:skip=CKV_AWS_260:Portal publico por HTTP 80 por diseno (Anexo 1); la verificacion independiente es externa
   name        = "${var.prefix}-aws-alb-sg"
   description = "HTTP desde Internet hacia el ALB"
   vpc_id      = aws_vpc.this.id
@@ -79,10 +83,18 @@ resource "aws_security_group" "instance" {
   }
 
   egress {
-    description = "Salida (bootstrap y metadata)"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
+    description = "HTTPS para paquetes y bootstrap"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "HTTP para repositorios de paquetes"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 

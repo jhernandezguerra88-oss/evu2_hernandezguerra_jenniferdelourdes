@@ -32,8 +32,8 @@ module "network" {
   prefix   = local.prefix
   vpc_cidr = "10.${var.x}.0.0/16"
   subnets = {
-    a = { cidr = "10.${var.x}.10.0/24", az_index = 0 }
-    b = { cidr = "10.${var.x}.20.0/24", az_index = 1 }
+    a = { cidr = "10.${var.x}.10.0/24", az = "${var.aws_region}a" }
+    b = { cidr = "10.${var.x}.20.0/24", az = "${var.aws_region}b" }
   }
 }
 
