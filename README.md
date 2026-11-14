@@ -19,7 +19,7 @@ Actualización: Instance Refresh rolling con capacidad base 2 y temporal 3.
 
 ## Prerrequisitos
 Terraform >= 1.10, AWS CLI, bucket S3 para state (fuera de Git), variables de
-repositorio: `X`, `CURSO`, `STUDENT_NAME`, `TF_STATE_BUCKET`, `AWS_REGION`;
+repositorio: `X`, `CURSO`, ``TF_STATE_BUCKET`, `AWS_REGION`;
 secrets temporales: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`.
 
 ## Despliegue

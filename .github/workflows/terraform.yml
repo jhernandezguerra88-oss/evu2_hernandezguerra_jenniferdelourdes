@@ -1,0 +1,162 @@
+name: Terraform CI/CD U2 (AWS)
+
+on:
+  pull_request:
+    branches: [Principal]
+  workflow_dispatch:
+    inputs:
+      portal_version:
+        description: "Version del Portal a desplegar"
+        type: choice
+        options: [v1, v2]
+        default: v1
+      aplicar:
+        description: "Ejecutar apply tras el gate (solo rama Principal)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-u2-aws
+  cancel-in-progress: false
+
+env:
+  TF_WORKDIR: environments/aws
+  TF_IN_AUTOMATION: "true"
+  TF_VAR_x: ${{ vars.X }}
+  TF_VAR_curso: ${{ vars.CURSO }}
+  TF_VAR_build_ref: ${{ github.sha }}
+  TF_VAR_portal_version: ${{ inputs.portal_version || vars.PORTAL_VERSION_DEFAULT || 'v1' }}
+  AWS_DEFAULT_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  # Credenciales temporales (AWS Academy) como secrets; nunca versionadas.
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+
+jobs:
+  controles:
+    name: Controles previos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: fmt (todo el repositorio, incluye modules/)
+        run: terraform fmt -check -recursive -diff
+
+      - uses: terraform-linters/setup-tflint@v4
+
+      - name: TFLint (recursivo)
+        run: |
+          tflint --init
+          tflint --recursive
+
+      - name: init (backend S3)
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: terraform init -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" -backend-config="region=${{ env.AWS_DEFAULT_REGION }}"
+
+      - name: validate
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: terraform validate
+
+      - name: Checkov (bloqueante)
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
+          framework: terraform
+          soft_fail: false
+          # PROVISORIO: completar con IDs justificados tras la primera
+          # ejecucion y documentarlos en el README.
+          skip_check: ""
+
+  plan:
+    name: Plan (artefacto revisable)
+    needs: controles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: init
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: terraform init -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" -backend-config="region=${{ env.AWS_DEFAULT_REGION }}"
+
+      - name: plan guardado
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: terraform plan -input=false -no-color -out=tfplan
+
+      - name: Prueba IaC (aserciones sobre el plan)
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: |
+          terraform show -json tfplan > plan.json
+          # IMDSv2 obligatorio y sin SSH abierto
+          jq -e '[.resource_changes[] | select(.type=="aws_launch_template") | .change.after.metadata_options[0].http_tokens] | all(. == "required")' plan.json
+          jq -e '[.resource_changes[] | select(.type=="aws_security_group") | .change.after.ingress[]? | select(.from_port==22)] | length == 0' plan.json
+          echo "Aserciones IaC superadas."
+
+      - name: Resumen del plan para revision
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: |
+          {
+            echo '## Plan Terraform'
+            echo "Commit: \`${{ github.sha }}\` · Version objetivo: \`${{ env.TF_VAR_portal_version }}\`"
+            echo '```'
+            terraform show -no-color tfplan
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publicar plan (retencion corta)
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ github.sha }}
+          path: ${{ env.TF_WORKDIR }}/tfplan
+          retention-days: 1
+
+  apply:
+    name: Apply (gate de aprobacion)
+    needs: plan
+    if: github.event_name == 'workflow_dispatch' && inputs.aplicar && github.ref == 'refs/heads/Principal'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: init
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: terraform init -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" -backend-config="region=${{ env.AWS_DEFAULT_REGION }}"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: tfplan-${{ github.sha }}
+          path: ${{ env.TF_WORKDIR }}
+
+      - name: apply del plan autorizado
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: terraform apply -input=false tfplan
+
+      - name: outputs
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: terraform output
+
+  plan-posterior:
+    name: Plan posterior (sin cambios)
+    needs: apply
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: init
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: terraform init -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" -backend-config="region=${{ env.AWS_DEFAULT_REGION }}"
+
+      - name: plan -detailed-exitcode (0 = sin cambios)
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: terraform plan -input=false -no-color -detailed-exitcode
