@@ -27,7 +27,7 @@ env:
   TF_IN_AUTOMATION: "true"
   TF_VAR_x: ${{ vars.X }}
   TF_VAR_curso: ${{ vars.CURSO }}
-  TF_VAR_student_name: ${{ vars.STUDENT_NAME }}
+  TF_VAR_build_ref: ${{ github.sha }}
   TF_VAR_portal_version: ${{ inputs.portal_version || vars.PORTAL_VERSION_DEFAULT || 'v1' }}
   AWS_DEFAULT_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
   # Credenciales temporales (AWS Academy) como secrets; nunca versionadas.

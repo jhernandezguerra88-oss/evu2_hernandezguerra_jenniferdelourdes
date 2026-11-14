@@ -22,9 +22,13 @@ variable "curso" {
   }
 }
 
-variable "student_name" {
-  description = "Nombre del estudiante"
+variable "build_ref" {
+  description = "Referencia del build/commit que identifica el artefacto (4 a 80 caracteres)"
   type        = string
+  validation {
+    condition     = can(regex("^[A-Za-z0-9._-]{4,80}$", var.build_ref))
+    error_message = "build_ref debe tener 4 a 80 caracteres: letras, numeros, punto, guion o guion bajo."
+  }
 }
 
 variable "portal_version" {

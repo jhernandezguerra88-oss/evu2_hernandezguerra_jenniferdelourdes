@@ -6,7 +6,7 @@ resource "aws_vpc" "this" {
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
   enable_dns_support   = true
-  tags                 = { Name = "${var.prefix}-vpc" }
+  tags                 = { Name = "${var.prefix}-aws-vpc" }
 }
 
 resource "aws_subnet" "public" {
@@ -16,12 +16,12 @@ resource "aws_subnet" "public" {
   cidr_block              = each.value.cidr
   availability_zone       = data.aws_availability_zones.available.names[each.value.az_index]
   map_public_ip_on_launch = true
-  tags                    = { Name = "${var.prefix}-subnet-${each.key}" }
+  tags                    = { Name = "${var.prefix}-aws-subnet-${each.key}" }
 }
 
 resource "aws_internet_gateway" "this" {
   vpc_id = aws_vpc.this.id
-  tags   = { Name = "${var.prefix}-igw" }
+  tags   = { Name = "${var.prefix}-aws-igw" }
 }
 
 resource "aws_route_table" "public" {
@@ -32,7 +32,7 @@ resource "aws_route_table" "public" {
     gateway_id = aws_internet_gateway.this.id
   }
 
-  tags = { Name = "${var.prefix}-rt" }
+  tags = { Name = "${var.prefix}-aws-rt" }
 }
 
 resource "aws_route_table_association" "public" {
@@ -42,7 +42,7 @@ resource "aws_route_table_association" "public" {
 }
 
 resource "aws_security_group" "alb" {
-  name        = "${var.prefix}-alb-sg"
+  name        = "${var.prefix}-aws-alb-sg"
   description = "HTTP desde Internet hacia el ALB"
   vpc_id      = aws_vpc.this.id
 
@@ -62,11 +62,11 @@ resource "aws_security_group" "alb" {
     cidr_blocks = [var.vpc_cidr]
   }
 
-  tags = { Name = "${var.prefix}-alb-sg" }
+  tags = { Name = "${var.prefix}-aws-alb-sg" }
 }
 
 resource "aws_security_group" "instance" {
-  name        = "${var.prefix}-ec2-sg"
+  name        = "${var.prefix}-aws-ec2-sg"
   description = "HTTP solo desde el ALB; sin SSH"
   vpc_id      = aws_vpc.this.id
 
@@ -86,5 +86,5 @@ resource "aws_security_group" "instance" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = { Name = "${var.prefix}-ec2-sg" }
+  tags = { Name = "${var.prefix}-aws-ec2-sg" }
 }

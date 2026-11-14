@@ -13,3 +13,7 @@ output "launch_template_id" {
 output "launch_template_version" {
   value = aws_launch_template.this.latest_version
 }
+
+output "target_group_arn" {
+  value = aws_lb_target_group.this.arn
+}

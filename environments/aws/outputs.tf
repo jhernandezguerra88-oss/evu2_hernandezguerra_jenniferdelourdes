@@ -33,3 +33,11 @@ output "launch_template_version" {
 output "portal_version" {
   value = var.portal_version
 }
+
+output "target_group_arn" {
+  value = module.compute.target_group_arn
+}
+
+output "build_ref" {
+  value = var.build_ref
+}

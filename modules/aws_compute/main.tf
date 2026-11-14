@@ -49,7 +49,7 @@ resource "aws_lb_target_group" "this" {
   vpc_id   = var.vpc_id
 
   health_check {
-    path                = "/"
+    path                = "/health"
     matcher             = "200"
     interval            = 10
     timeout             = 5

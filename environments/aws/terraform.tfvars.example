@@ -1,6 +1,6 @@
 # Copiar a un archivo local NO versionado o inyectar con TF_VAR_*
 # (en el pipeline: variables de GitHub Actions, sin secretos).
-x              = 0 # <- tu N.º X
-curso          = "c01"
-student_name   = "Jennifer de Lourdes Hernandez Guerra"
+x              = 5
+curso          = "c50" # minuscula: formato cNN
+build_ref      = "reemplazar-por-commit"
 portal_version = "v1"

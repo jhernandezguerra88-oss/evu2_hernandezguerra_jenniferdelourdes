@@ -10,16 +10,18 @@ locals {
     proveedor = "aws"
   }
 
-  # Parametros del bootstrap docente. Ajustar a las variables reales
-  # de la plantilla v2 cuando se reciba.
+  # Artefacto docente unico para v1 y v2: la version solo cambia el valor
+  # portal_version, y el propio bootstrap instala un release distinto.
+  # x debe ser numero (el bootstrap valida tipo entero).
   portal_user_data = templatefile(
-    "${path.module}/templates/user_data_${var.portal_version}.sh.tpl",
+    "${path.module}/templates/user_data_u2.sh.tpl",
     {
-      student_name   = var.student_name
-      student_number = tostring(var.x)
-      environment    = "u2"
+      provider       = "aws"
+      x              = var.x
+      student        = local.alumno
+      course         = var.curso
+      build_ref      = var.build_ref
       portal_version = var.portal_version
-      project_name   = "NexoAndes"
     }
   )
 }
