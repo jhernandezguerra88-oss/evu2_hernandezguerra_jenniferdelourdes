@@ -45,6 +45,7 @@ resource "aws_route_table_association" "public" {
 }
 
 resource "aws_security_group" "alb" {
+  #checkov:skip=CKV2_AWS_5:El SG se asocia en el modulo aws_compute (ALB / Launch Template); Checkov analiza el modulo de red de forma aislada
   #checkov:skip=CKV_AWS_260:Portal publico por HTTP 80 por diseno (Anexo 1); la verificacion independiente es externa
   name        = "${var.prefix}-aws-alb-sg"
   description = "HTTP desde Internet hacia el ALB"
@@ -70,6 +71,7 @@ resource "aws_security_group" "alb" {
 }
 
 resource "aws_security_group" "instance" {
+  #checkov:skip=CKV2_AWS_5:El SG se asocia en el modulo aws_compute (ALB / Launch Template); Checkov analiza el modulo de red de forma aislada
   name        = "${var.prefix}-aws-ec2-sg"
   description = "HTTP solo desde el ALB; sin SSH"
   vpc_id      = aws_vpc.this.id
