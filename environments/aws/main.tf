@@ -50,4 +50,5 @@ module "compute" {
   portal_version   = var.portal_version
   capacidad_base   = var.capacidad_base
   capacidad_maxima = var.capacidad_maxima
+  tags             = local.tags
 }

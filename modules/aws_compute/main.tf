@@ -24,10 +24,15 @@ resource "aws_launch_template" "this" {
 
   tag_specifications {
     resource_type = "instance"
-    tags = {
+    tags = merge(var.tags, {
       Name    = "${var.prefix}-ec2"
       version = var.portal_version
-    }
+    })
+  }
+
+  tag_specifications {
+    resource_type = "volume"
+    tags          = var.tags
   }
 
   lifecycle {
