@@ -14,6 +14,10 @@ on:
         description: "Ejecutar apply tras el gate (solo rama Principal)"
         type: boolean
         default: false
+      destruir:
+        description: "Destruir la infraestructura (plan de destruccion + gate, solo rama Principal)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -75,6 +79,7 @@ jobs:
   plan:
     name: Plan (artefacto revisable)
     needs: controles
+    if: ${{ !inputs.destruir }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -160,3 +165,62 @@ jobs:
       - name: plan -detailed-exitcode (0 = sin cambios)
         working-directory: ${{ env.TF_WORKDIR }}
         run: terraform plan -input=false -no-color -detailed-exitcode
+
+  plan-destruccion:
+    name: Plan de destruccion (artefacto revisable)
+    needs: controles
+    if: github.event_name == 'workflow_dispatch' && inputs.destruir && github.ref == 'refs/heads/Principal'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: init
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: terraform init -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" -backend-config="region=${{ env.AWS_DEFAULT_REGION }}"
+
+      - name: plan de destruccion guardado
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: terraform plan -destroy -input=false -no-color -out=tfdestroy
+
+      - name: Resumen del plan de destruccion
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: |
+          {
+            echo '## Plan de destruccion'
+            echo "Commit: \`${{ github.sha }}\`"
+            echo '```'
+            terraform show -no-color tfdestroy
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publicar plan de destruccion (retencion corta)
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfdestroy-${{ github.sha }}
+          path: ${{ env.TF_WORKDIR }}/tfdestroy
+          retention-days: 1
+
+  destruccion:
+    name: Destruccion (gate de aprobacion)
+    needs: plan-destruccion
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: init
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: terraform init -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" -backend-config="region=${{ env.AWS_DEFAULT_REGION }}"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: tfdestroy-${{ github.sha }}
+          path: ${{ env.TF_WORKDIR }}
+
+      - name: destruir segun el plan autorizado
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: terraform apply -input=false tfdestroy

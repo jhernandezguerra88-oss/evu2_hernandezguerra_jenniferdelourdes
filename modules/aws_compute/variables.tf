@@ -37,3 +37,7 @@ variable "capacidad_base" {
 variable "capacidad_maxima" {
   type = number
 }
+
+variable "tags" {
+  type = map(string)
+}
