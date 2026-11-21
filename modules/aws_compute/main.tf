@@ -118,34 +118,3 @@ resource "aws_autoscaling_group" "this" {
     create_before_destroy = true
   }
 }
-  name                = "${var.prefix}-asg"
-  min_size            = var.capacidad_base
-  desired_capacity    = var.capacidad_base
-  max_size            = var.capacidad_maxima
-  vpc_zone_identifier = var.subnet_ids
-  target_group_arns   = [aws_lb_target_group.this.arn]
-
-  health_check_type         = "ELB"
-  health_check_grace_period = 120
-
-  launch_template {
-    id      = aws_launch_template.this.id
-    version = aws_launch_template.this.latest_version
-  }
-
-  # Reemplazo rolling: nunca baja de la capacidad base declarada.
-  instance_refresh {
-    strategy = "Rolling"
-    preferences {
-      min_healthy_percentage = 100
-      max_healthy_percentage = 150
-      instance_warmup        = 120
-    }
-  }
-
-  tag {
-    key                 = "Name"
-    value               = "${var.prefix}-ec2"
-    propagate_at_launch = true
-  }
-}
