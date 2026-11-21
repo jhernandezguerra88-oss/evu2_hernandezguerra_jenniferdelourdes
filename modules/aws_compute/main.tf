@@ -87,7 +87,7 @@ resource "aws_lb_listener" "http" {
 }
 
 resource "aws_autoscaling_group" "this" {
-  name                = "${var.prefix}-asg"
+  name                = "${var.prefix}-asg-${var.portal_version}"
   min_size            = var.capacidad_base
   desired_capacity    = var.capacidad_base
   max_size            = var.capacidad_maxima
@@ -96,25 +96,25 @@ resource "aws_autoscaling_group" "this" {
 
   health_check_type         = "ELB"
   health_check_grace_period = 120
+  min_elb_capacity          = var.capacidad_base
+  wait_for_capacity_timeout = "10m"
 
   launch_template {
     id      = aws_launch_template.this.id
     version = aws_launch_template.this.latest_version
   }
 
-  # Reemplazo rolling: nunca baja de la capacidad base declarada.
-  instance_refresh {
-    strategy = "Rolling"
-    preferences {
-      min_healthy_percentage = 100
-      max_healthy_percentage = 150
-      instance_warmup        = 120
-    }
-  }
-
   tag {
     key                 = "Name"
     value               = "${var.prefix}-ec2"
     propagate_at_launch = true
+  }
+
+  # Reemplazo inmutable por ASG (blue-green detras del mismo ALB): el grupo de la
+  # version nueva se crea y espera destinos sanos (min_elb_capacity) antes de que
+  # Terraform destruya el de la version anterior. No usa StartInstanceRefresh,
+  # que la politica (SCP) del laboratorio deniega.
+  lifecycle {
+    create_before_destroy = true
   }
 }
