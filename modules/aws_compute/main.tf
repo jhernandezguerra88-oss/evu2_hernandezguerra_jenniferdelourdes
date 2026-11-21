@@ -86,7 +86,7 @@ resource "aws_lb_listener" "http" {
   }
 }
 
-resource "aws_autoscaling_group" "this" {resource "aws_autoscaling_group" "this" {
+resource "aws_autoscaling_group" "this" {
   name                = "${var.prefix}-asg-${var.portal_version}"
   min_size            = var.capacidad_base
   desired_capacity    = var.capacidad_base
